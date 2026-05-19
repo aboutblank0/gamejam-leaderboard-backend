@@ -4,7 +4,7 @@ CREATE TABLE games (
     name TEXT NOT NULL,
     enabled BOOLEAN DEFAULT TRUE,
 
-    created_at TIMESTAMPZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE scores (
@@ -14,7 +14,7 @@ CREATE TABLE scores (
     player_name TEXT NOT NULL CHECK (char_length(player_name) <= 50),
     game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
     
-    created_at TIMESTAMPZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_scores_game_id_score_desc ON scores (game_id, score DESC);
