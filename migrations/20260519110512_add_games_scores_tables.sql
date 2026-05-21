@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE games (
     id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE,
     enabled BOOLEAN DEFAULT TRUE,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -21,5 +21,5 @@ CREATE INDEX idx_scores_game_id_score_desc ON scores (game_id, score DESC);
 
 -- +goose Down
 DROP INDEX IF EXISTS idx_scores_game_id_score_desc;
-DROP TABLE games;
 DROP TABLE scores;
+DROP TABLE games;
