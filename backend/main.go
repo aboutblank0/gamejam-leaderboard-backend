@@ -73,8 +73,8 @@ func main() {
 		r.Route("/{gameName}", func(r chi.Router) {
 			r.Use(GameCtx)
 
-			r.Get("/scores", getGameScores)
-			r.Post("/scores", postGameScores)
+			r.With(RateLimitGet).Get("/scores", getGameScores)
+			r.With(RateLimitPost).Post("/scores", postGameScores)
 		})
 
 		r.With(AdminOnly).Put("/", putGames)
