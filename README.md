@@ -107,3 +107,8 @@ Body:
 - Score submissions are rate limited per IP.
 - Leaderboard reads are also rate limited per IP.
 - Player names are limited to 50 characters in the database.
+
+## Future plans / potential improvements
+
+- Add a profanity filter for player names if needed.
+- In practice, this may be better handled on the frontend before submission.
