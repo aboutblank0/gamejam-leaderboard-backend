@@ -9,6 +9,19 @@ It lets you:
 - fetch a game's leaderboard
 - rate limit score submissions and leaderboard reads
 
+## Tech stack
+
+- Go 1.25
+- chi router
+- sqlx
+- PostgreSQL 16
+- goose migrations
+- Docker / Docker Compose
+- Adminer
+- godotenv
+- lib/pq
+- golang.org/x/time
+
 ## Requirements
 
 - Go 1.25+
@@ -40,7 +53,7 @@ The repo includes `docker-compose-example.yml` for PostgreSQL, Adminer, and migr
    docker compose -f docker-compose.yml up -d db adminer
    ```
 
-4. Run the migrations:
+4. Start the migrations container. It runs `goose up` automatically:
 
    ```bash
    docker compose -f docker-compose.yml up --build migrations
@@ -60,13 +73,14 @@ Adminer is available at `http://localhost:8080`.
 ### Option 2: Run the backend directly
 
 1. Start PostgreSQL.
-2. Apply the SQL migration in `migrations/20260519110512_add_games_scores_tables.sql`.
-3. Set `DATABASE_URL` and, if needed, `ADMIN_SECRET`.
-4. Run the backend from the `backend` directory:
+2. Set `DATABASE_URL` and, if needed, `ADMIN_SECRET`.
+3. Run the backend from the `backend` directory:
 
    ```bash
    go run .
    ```
+
+If you're not using Docker Compose, make sure the database has already been migrated.
 
 The server listens on `http://localhost:3000`.
 
