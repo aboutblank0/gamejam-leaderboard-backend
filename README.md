@@ -7,7 +7,6 @@ It lets you:
 - create and enable/disable games by name
 - submit scores for a game
 - fetch a game's leaderboard
-- keep player names lightly filtered for profanity
 - rate limit score submissions and leaderboard reads
 
 ## Requirements
@@ -105,8 +104,6 @@ Body:
 
 ## Notes
 
-- A game must exist before scores can be submitted or fetched.
-- Disabled games return `403 Forbidden`.
 - Score submissions are rate limited per IP.
 - Leaderboard reads are also rate limited per IP.
 - Player names are limited to 50 characters in the database.
