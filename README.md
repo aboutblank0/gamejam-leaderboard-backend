@@ -47,19 +47,15 @@ The repo includes `docker-compose-example.yml` for PostgreSQL, Adminer, and migr
    ```
 
 2. Fill in `POSTGRES_PASSWORD` and `GOOSE_DBSTRING` in `docker-compose.yml`.
-3. Start the database and Adminer:
-
-   ```bash
-   docker compose -f docker-compose.yml up -d db adminer
-   ```
-
-4. Start the migrations container. It runs `goose up` automatically:
+3. Start everything in the compose file:
 
    ```bash
    docker compose -f docker-compose.yml up --build migrations
    ```
 
-5. In another shell, start the backend:
+   Compose will start PostgreSQL, Adminer, and the migrations container in the right order.
+
+4. In another shell, start the backend:
 
    ```bash
    cd backend
