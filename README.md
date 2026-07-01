@@ -27,20 +27,26 @@ The backend reads these at startup:
 
 The repo includes `docker-compose-example.yml` for PostgreSQL, Adminer, and migrations.
 
-1. Fill in `POSTGRES_PASSWORD` and `GOOSE_DBSTRING` in `docker-compose-example.yml`.
-2. Start the database and Adminer:
+1. Copy the example file and rename it for your local setup:
 
    ```bash
-   docker compose -f docker-compose-example.yml up -d db adminer
+   cp docker-compose-example.yml docker-compose.yml
    ```
 
-3. Run the migrations:
+2. Fill in `POSTGRES_PASSWORD` and `GOOSE_DBSTRING` in `docker-compose.yml`.
+3. Start the database and Adminer:
 
    ```bash
-   docker compose -f docker-compose-example.yml up --build migrations
+   docker compose -f docker-compose.yml up -d db adminer
    ```
 
-4. In another shell, start the backend:
+4. Run the migrations:
+
+   ```bash
+   docker compose -f docker-compose.yml up --build migrations
+   ```
+
+5. In another shell, start the backend:
 
    ```bash
    cd backend
