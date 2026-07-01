@@ -50,7 +50,7 @@ The repo includes `docker-compose-example.yml` for PostgreSQL, Adminer, and migr
 3. Start everything in the compose file:
 
    ```bash
-   docker compose -f docker-compose.yml up --build migrations
+   docker compose up --build migrations
    ```
 
    Compose will start PostgreSQL, Adminer, and the migrations container in the right order.
