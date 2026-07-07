@@ -168,16 +168,14 @@ Returns scores for the game, highest score first.
 ```json
 [
   {
-    "ID": 1,
-    "Score": 1234,
-    "PlayerName": "PlayerName",
-    "GameID": 1,
-    "CreatedAt": "2026-07-07T12:00:00Z"
+    "id": 1,
+    "score": 1234,
+    "player_name": "PlayerName",
+    "game_id": 1,
+    "created_at": "2026-07-07T12:00:00Z"
   }
 ]
 ```
-
-> Note the field names are capitalized — the response structs don't define `json` tags, so Go's default (exported field name) is used as-is.
 
 Responses: `404 Not Found` if the game name doesn't exist, `403 Forbidden` if the game exists but is disabled, `429 Too Many Requests` if rate limited.
 
@@ -211,4 +209,3 @@ Limits are tracked in memory, per client IP (not persisted, resets on backend re
 ## Future plans / potential improvements
 
 - Add a profanity filter for player names if needed (may be better handled client-side before submission).
-- Add `json` tags to response structs for consistent snake_case output.

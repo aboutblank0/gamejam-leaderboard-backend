@@ -19,18 +19,18 @@ import (
 )
 
 type Game struct {
-	ID        int32     `db:"id"`
-	Name      string    `db:"name"`
-	Enabled   bool      `db:"enabled"`
-	CreatedAt time.Time `db:"created_at"`
+	ID        int32     `db:"id" json:"id"`
+	Name      string    `db:"name" json:"name"`
+	Enabled   bool      `db:"enabled" json:"enabled"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
 
 type Score struct {
-	ID         int32     `db:"id"`
-	Score      int32     `db:"score"`
-	PlayerName string    `db:"player_name"`
-	GameID     int32     `db:"game_id"`
-	CreatedAt  time.Time `db:"created_at"`
+	ID         int32     `db:"id" json:"id"`
+	Score      int32     `db:"score" json:"score"`
+	PlayerName string    `db:"player_name" json:"player_name"`
+	GameID     int32     `db:"game_id" json:"game_id"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 }
 
 type ScoreSubmit struct {
