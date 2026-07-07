@@ -1,83 +1,116 @@
-# Game Jam Leaderboard Backend
+# Game Jam Leaderboard
 
-Simple backend for game jam leaderboards.
+A small, self-hosted leaderboard backend for game jam games. Drop it behind your game, create a game entry, and let players submit and fetch scores.
 
 It lets you:
 
 - create and enable/disable games by name
 - submit scores for a game
-- fetch a game's leaderboard
-- rate limit score submissions and leaderboard reads
+- fetch a game's leaderboard (sorted, paginated)
+- rate limit score submissions and leaderboard reads per IP
 
 ## Tech stack
 
 - Go 1.25
-- chi router
-- sqlx
+- [chi](https://github.com/go-chi/chi) router
+- [sqlx](https://github.com/jmoiron/sqlx)
 - PostgreSQL 16
-- goose
-- Docker
-- Adminer
-- godotenv
-- golang.org/x/time
+- [goose](https://github.com/pressly/goose) for migrations
+- Docker / Docker Compose
+- Adminer (DB admin UI)
+- [godotenv](https://github.com/joho/godotenv)
+
+## Project layout
+
+```
+.
+├── backend/            # Go HTTP API (main.go, ratelimitter.go)
+├── migrations/          # goose SQL migrations
+├── docker/
+│   └── migrations.Dockerfile   # runs `goose up` against the DB
+├── docker-compose-example.yml  # template — copy to docker-compose.yml
+└── docker-compose.yml   # your local Postgres + Adminer + migrations (gitignored)
+```
+
+There's no frontend in this repo — the backend is meant to be called from your game/site directly.
 
 ## Requirements
 
 - Go 1.25+
-- PostgreSQL 16+
+- Docker + Docker Compose (recommended), or a standalone PostgreSQL 16+ instance
+
+## Setup
+
+### 1. Start Postgres + Adminer + run migrations
+
+```bash
+cp docker-compose-example.yml docker-compose.yml
+```
+
+Edit `docker-compose.yml`:
+
+- Set `POSTGRES_PASSWORD` under the `db` service.
+- Set `GOOSE_DBSTRING` under the `migrations` service to match (host is `db` since it talks to Postgres over the compose network).
+- The example file doesn't expose Postgres to your host machine. Since the backend itself runs outside Docker (there's no backend service in the compose file), add a `ports` entry under `db` so you can connect to it, e.g.:
+
+  ```yaml
+  db:
+    ...
+    ports:
+      - "5432:5432"
+  ```
+
+Then bring everything up (this starts Postgres and Adminer, and runs the migrations container once to apply the schema):
+
+```bash
+docker compose up --build
+```
+
+> Running just `docker compose up --build migrations` will start Postgres and run the migration, but **not** Adminer, since Adminer isn't a dependency of the `migrations` service — use the plain `docker compose up --build` above to get all three.
+
+Adminer is then available at [http://localhost:8080](http://localhost:8080) (system: PostgreSQL, server: `db` if browsing from inside the compose network, or `localhost:<port>` from your host; user `postgres`, password from `docker-compose.yml`).
+
+### 2. Configure and run the backend
+
+The backend loads a `.env` file automatically (via `godotenv`), so you don't need to export variables by hand.
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edit `backend/.env`:
+
+```bash
+DATABASE_URL="postgresql://postgres:<password>@localhost:<port>/postgres?sslmode=disable"
+ADMIN_SECRET="<pick-a-secret>"
+```
+
+Then run it:
+
+```bash
+go run .
+```
+
+The server listens on `http://localhost:3000`.
+
+If you're not using Docker Compose, just point `DATABASE_URL` at any Postgres 16+ instance that already has the migrations applied (`goose up` from the `migrations/` directory, or via `docker compose up --build migrations`).
 
 ## Environment variables
 
-The backend reads these at startup:
+Read by the backend at startup (`backend/.env` or the real environment):
 
-- `DATABASE_URL` — required. PostgreSQL connection string.
-- `ADMIN_SECRET` — optional, but required if you want to create or update games.
+| Variable | Required | Purpose |
+|---|---|---|
+| `DATABASE_URL` | yes | PostgreSQL connection string |
+| `ADMIN_SECRET` | no* | API key needed to create/update games. Without it, the create/update game endpoint is permanently locked out (not just unauthenticated) |
 
-## Run locally
+Read by the migrations container (set in `docker-compose.yml`):
 
-### Option 1: Docker + Docker Compose
-
-The repo includes `docker-compose-example.yml` for PostgreSQL, Adminer, and migrations.
-
-1. Copy the example file and rename it for your local setup:
-
-   ```bash
-   cp docker-compose-example.yml docker-compose.yml
-   ```
-
-2. Fill in `POSTGRES_PASSWORD` and `GOOSE_DBSTRING` in `docker-compose.yml`.
-3. Start everything in the compose file:
-
-   ```bash
-   docker compose up --build migrations
-   ```
-
-   Compose will start PostgreSQL, Adminer, and the migrations container in the right order.
-
-4. In another shell, start the backend:
-
-   ```bash
-   cd backend
-   DATABASE_URL="postgresql://postgres:<password>@localhost:5432/postgres?sslmode=disable" \
-   ADMIN_SECRET="<secret>" \
-   go run .
-   ```
-
-Adminer is available at `http://localhost:8080`.
-
-### Option 2: Run the backend directly
-
-1. Start PostgreSQL.
-2. Set `DATABASE_URL` and, if needed, `ADMIN_SECRET`.
-3. Run the backend from the `backend` directory:
-
-   ```bash
-   go run .
-   ```
-
-If you're not using Docker Compose, make sure the database has already been migrated.
-
-The server listens on `http://localhost:3000`.
+| Variable | Purpose |
+|---|---|
+| `GOOSE_DRIVER` | Always `postgres` |
+| `GOOSE_DBSTRING` | PostgreSQL connection string, reachable from inside the compose network |
 
 ## API
 
@@ -98,11 +131,31 @@ Body:
 }
 ```
 
+Creates the game if it doesn't exist, or updates its `enabled` flag if it does (upsert on `game_name`).
+
+Responses: `401 Unauthorized` if the API key is missing/wrong (or `ADMIN_SECRET` isn't set at all), `400 Bad Request` on malformed JSON.
+
 ### Get scores
 
 `GET /games/{gameName}/scores?limit=20&offset=0`
 
-Returns scores ordered by highest score first.
+Returns scores for the game, highest score first.
+
+```json
+[
+  {
+    "ID": 1,
+    "Score": 1234,
+    "PlayerName": "PlayerName",
+    "GameID": 1,
+    "CreatedAt": "2026-07-07T12:00:00Z"
+  }
+]
+```
+
+> Note the field names are capitalized — the response structs don't define `json` tags, so Go's default (exported field name) is used as-is.
+
+Responses: `404 Not Found` if the game name doesn't exist, `403 Forbidden` if the game exists but is disabled, `429 Too Many Requests` if rate limited.
 
 ### Submit a score
 
@@ -117,13 +170,21 @@ Body:
 }
 ```
 
+Responses: `404 Not Found` / `403 Forbidden` (same rules as above), `400 Bad Request` on malformed JSON, `429 Too Many Requests` if rate limited.
+
+## Rate limiting
+
+Limits are tracked in memory, per client IP (not persisted, resets on backend restart):
+
+- **Reads** (`GET /scores`): up to 50 requests per 30-second window. Exceeding it bans the IP from reads for 1 minute.
+- **Writes** (`POST /scores`): at most 1 submission per 30 seconds per IP; extra requests get a `429` telling you how long to wait.
+
 ## Notes
 
-- Score submissions are rate limited per IP.
-- Leaderboard reads are also rate limited per IP.
-- Player names are limited to 50 characters in the database.
+- Player names are limited to 50 characters at the database level (`CHECK` constraint).
+- Scores are stored as `BIGINT`; the API decodes them as 32-bit ints (`int32`).
 
 ## Future plans / potential improvements
 
-- Add a profanity filter for player names if needed.
-- In practice, this may be better handled on the frontend before submission.
+- Add a profanity filter for player names if needed (may be better handled client-side before submission).
+- Add `json` tags to response structs for consistent snake_case output.
