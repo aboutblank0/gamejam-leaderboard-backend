@@ -64,28 +64,33 @@ func RateLimitGet(next http.Handler) http.Handler {
 
 		client.LastSeen = now
 
+		var limitMsg string
+
 		// Limit Banned IPs
 		if now.Before(client.BannedUntil) {
-			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
-			return
-		}
+			limitMsg = "Rate limit exceeded"
+		} else {
+			// Reset Window
+			if now.Sub(client.WindowStart) > getWindow {
+				client.WindowStart = now
+				client.RequestCount = 0
+			}
 
-		// Reset Window
-		if now.Sub(client.WindowStart) > getWindow {
-			client.WindowStart = now
-			client.RequestCount = 0
-		}
+			client.RequestCount++
 
-		client.RequestCount++
-
-		if client.RequestCount > getLimit {
-			client.BannedUntil = now.Add(banDuration)
-
-			http.Error(w, "Too many requests", http.StatusTooManyRequests)
-			return
+			if client.RequestCount > getLimit {
+				client.BannedUntil = now.Add(banDuration)
+				limitMsg = "Too many requests"
+			}
 		}
 
 		mu.Unlock()
+
+		if limitMsg != "" {
+			http.Error(w, limitMsg, http.StatusTooManyRequests)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -111,8 +116,9 @@ func RateLimitPost(next http.Handler) http.Handler {
 		client.LastSeen = now
 
 		// Check the cooldown
-		if now.Sub(client.LastPost) < postCooldown {
-			remaining := postCooldown - now.Sub(client.LastPost)
+		remaining := postCooldown - now.Sub(client.LastPost)
+		if remaining > 0 {
+			mu.Unlock()
 
 			http.Error(
 				w,
