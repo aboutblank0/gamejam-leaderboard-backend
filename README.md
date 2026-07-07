@@ -27,9 +27,10 @@ It lets you:
 ├── backend/            # Go HTTP API (main.go, ratelimitter.go)
 ├── migrations/          # goose SQL migrations
 ├── docker/
+│   ├── backend.Dockerfile      # builds and runs the API
 │   └── migrations.Dockerfile   # runs `goose up` against the DB
 ├── docker-compose-example.yml  # template — copy to docker-compose.yml
-└── docker-compose.yml   # your local Postgres + Adminer + migrations (gitignored)
+└── docker-compose.yml   # your local Postgres + Adminer + migrations + backend (gitignored)
 ```
 
 There's no frontend in this repo — the backend is meant to be called from your game/site directly.
@@ -41,7 +42,9 @@ There's no frontend in this repo — the backend is meant to be called from your
 
 ## Setup
 
-### 1. Start Postgres + Adminer + run migrations
+### Option A: everything in Docker Compose (simplest)
+
+Postgres, Adminer, the migrations job, and the backend itself all run as compose services.
 
 ```bash
 cp docker-compose-example.yml docker-compose.yml
@@ -50,39 +53,60 @@ cp docker-compose-example.yml docker-compose.yml
 Edit `docker-compose.yml`:
 
 - Set `POSTGRES_PASSWORD` under the `db` service.
-- Set `GOOSE_DBSTRING` under the `migrations` service to match (host is `db` since it talks to Postgres over the compose network).
-- The example file doesn't expose Postgres to your host machine. Since the backend itself runs outside Docker (there's no backend service in the compose file), add a `ports` entry under `db` so you can connect to it, e.g.:
+- Set `GOOSE_DBSTRING` under `migrations` and `DATABASE_URL` under `backend` to match — use `db:5432` as the host (that's the internal compose network hostname/port), e.g. `postgresql://postgres:<password>@db:5432/postgres?sslmode=disable`.
+- Set `ADMIN_SECRET` under `backend` to whatever secret you want to use for admin requests.
 
-  ```yaml
-  db:
-    ...
-    ports:
-      - "5432:5432"
-  ```
-
-Then bring everything up (this starts Postgres and Adminer, and runs the migrations container once to apply the schema):
+Then bring everything up:
 
 ```bash
 docker compose up --build
 ```
 
-> Running just `docker compose up --build migrations` will start Postgres and run the migration, but **not** Adminer, since Adminer isn't a dependency of the `migrations` service — use the plain `docker compose up --build` above to get all three.
+This starts Postgres and Adminer, runs the migrations container once to apply the schema, and then starts the backend (it waits for migrations to finish successfully before starting).
 
-Adminer is then available at [http://localhost:8080](http://localhost:8080) (system: PostgreSQL, server: `db` if browsing from inside the compose network, or `localhost:<port>` from your host; user `postgres`, password from `docker-compose.yml`).
+> Running just `docker compose up --build migrations` will start Postgres and run the migration, but **not** Adminer or the backend, since neither is a dependency of the `migrations` service — use the plain `docker compose up --build` above to get everything.
 
-### 2. Configure and run the backend
+- The API listens on [http://localhost:3000](http://localhost:3000).
+- Adminer is at [http://localhost:8080](http://localhost:8080) (system: PostgreSQL, server: `db`, user `postgres`, password from `docker-compose.yml`).
 
-The backend loads a `.env` file automatically (via `godotenv`), so you don't need to export variables by hand.
+Rebuild after changing backend code with `docker compose up --build backend`.
+
+### Option B: run the backend locally (faster iteration)
+
+Useful while actively developing, since `go run .` picks up changes instantly without a Docker rebuild.
+
+Start just Postgres, Adminer, and migrations, and expose Postgres to your host so the locally-running backend can reach it:
+
+```bash
+cp docker-compose-example.yml docker-compose.yml
+```
+
+Add a `ports` entry under the `db` service (the example doesn't expose one by default):
+
+```yaml
+db:
+  ...
+  ports:
+    - "5432:5432"
+```
+
+Fill in `POSTGRES_PASSWORD`/`GOOSE_DBSTRING` as above, then start everything except the backend:
+
+```bash
+docker compose up --build db adminer migrations
+```
+
+The backend loads a `.env` file automatically (via `godotenv`), so you don't need to export variables by hand:
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-Edit `backend/.env`:
+Edit `backend/.env`, pointing at the host-mapped Postgres port this time:
 
 ```bash
-DATABASE_URL="postgresql://postgres:<password>@localhost:<port>/postgres?sslmode=disable"
+DATABASE_URL="postgresql://postgres:<password>@localhost:5432/postgres?sslmode=disable"
 ADMIN_SECRET="<pick-a-secret>"
 ```
 
@@ -94,11 +118,11 @@ go run .
 
 The server listens on `http://localhost:3000`.
 
-If you're not using Docker Compose, just point `DATABASE_URL` at any Postgres 16+ instance that already has the migrations applied (`goose up` from the `migrations/` directory, or via `docker compose up --build migrations`).
+If you're not using Docker Compose at all, just point `DATABASE_URL` at any Postgres 16+ instance that already has the migrations applied (`goose up` from the `migrations/` directory).
 
 ## Environment variables
 
-Read by the backend at startup (`backend/.env` or the real environment):
+Read by the backend at startup (`backend/.env`, or the `backend` service's `environment:` block in Docker):
 
 | Variable | Required | Purpose |
 |---|---|---|

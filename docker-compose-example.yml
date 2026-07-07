@@ -24,10 +24,28 @@ services:
     depends_on:
       db:
         condition: service_started
-    
+
     environment:
       GOOSE_DRIVER: "postgres"
-      GOOSE_DBSTRING: #postgresql://postgres:<password>@localhost:5432/postgres?sslmode=disable
+      GOOSE_DBSTRING: #postgresql://postgres:<password>@db:5432/postgres?sslmode=disable
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+
+    restart: always
+
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+
+    ports:
+      - 3000:3000
+
+    environment:
+      DATABASE_URL: #postgresql://postgres:<password>@db:5432/postgres?sslmode=disable
+      ADMIN_SECRET: #<YOUR SECRET>
 
 volumes:
   pgdata:
